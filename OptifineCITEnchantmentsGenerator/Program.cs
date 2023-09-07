@@ -1,31 +1,64 @@
 ﻿
-Console.WriteLine("Enter gear type (netherite_helmet, diamond_chestplate)");
+Console.WriteLine("Enter one gear type (e.g netherite_helmet, diamond_axe, or netherite_armor for whole set)");
 string gearType = Console.ReadLine();
 string gearTexture = gearType.Split("_")[1];
 
-Console.WriteLine("Enter enchantments (protection,unbreaking)");
+Console.WriteLine("Enter enchantments (fire_protection,unbreaking) max 3");
 string enchantmentsString = Console.ReadLine();
 string[] enchantments = enchantmentsString.Split(",");
 
+string enchantmentFileName = GenerateEnchantmentFileName();
 
 int maxEnchantments = 10; // nbt.Enchantments.0 to nbt.Enchantments.9
 int counter = 0;
-string fileNameType;
-if (CheckIfArmor(gearType))
-{
-    fileNameType = "armor";
-    string content = Gear();
-    WriteFiles(content);
+string itemType;
 
-    fileNameType = "item";
-    content = Item();
-    WriteFiles(content);
+for (int i = 0; i < enchantments.Length; i++)
+    enchantments[i] = "minecraft:" + enchantments[i];
+
+if (gearType.Split("_")[1] == "armor")
+{
+    var gearTier = gearType.Split("_")[0];
+    var gears = new string[4];
+
+    gears[0] = $"{gearTier}_helmet";
+    gears[1] = $"{gearTier}_chestplate";
+    gears[2] = $"{gearTier}_leggings";
+    gears[3] = $"{gearTier}_boots";
+
+    foreach (var gear in gears)
+    {
+        gearType = gear;
+        gearTexture = gearType.Split("_")[1];
+        GenerateFiles();
+
+        counter = 0;
+    }
 }
 else
 {
-    fileNameType = "item";
-    string content = Item();
-    WriteFiles(content);
+    GenerateFiles();
+}
+
+
+void GenerateFiles()
+{
+    if (CheckIfArmor(gearType))
+    {
+        itemType = "armor";
+        string content = Gear();
+        WriteFiles(content);
+
+        itemType = "item";
+        content = Item();
+        WriteFiles(content);
+    }
+    else
+    {
+        itemType = "item";
+        string content = Item();
+        WriteFiles(content);
+    }
 }
 
 void WriteFiles(string content)
@@ -53,13 +86,16 @@ void One(string propertyContent)
        // Generate property files for all possible combinations
     for (int i = 0; i < maxEnchantments; i++)
     {
-        string fileName = $"{gearType}_{i}.properties";
+        string fileName = $"{gearType}_{itemType}_{i}.properties";
 
         string _propertyContent = propertyContent;
         _propertyContent += $"{Environment.NewLine}nbt.Enchantments.{i}.id={enchantments[0]}";
 
         counter++;
-        File.WriteAllText(fileName, _propertyContent);
+        string filePath = FilePath();
+
+        Directory.CreateDirectory(filePath);
+        File.WriteAllText($"{filePath}\\{fileName}", _propertyContent);
     }
 }
 
@@ -73,7 +109,7 @@ void Two(string propertyContent)
             if (i == j)
                 continue;
 
-            string fileName = $"{gearType}_{fileNameType}_{i}_{j}.properties";
+            string fileName = $"{gearType}_{itemType}_{i}_{j}.properties";
 
             string _propertyContent = propertyContent;
             
@@ -82,7 +118,8 @@ void Two(string propertyContent)
             _propertyContent += $"{Environment.NewLine}nbt.Enchantments.{j}.id={enchantments[1]}";
 
             counter++;
-            File.WriteAllText(fileName, _propertyContent);
+            string filePath = FilePath();
+            File.WriteAllText($"{filePath}\\{fileName}", _propertyContent);
         }
     }
 }
@@ -99,7 +136,7 @@ void Three(string propertyContent)
                 if(i == j || i == k || j == k)
                     continue;
 
-                string fileName = $"{gearType}_{fileNameType}_{i}_{j}_{k}.properties";
+                string fileName = $"{gearType}_{itemType}_{i}_{j}_{k}.properties";
 
                 string _propertyContent = propertyContent;
 
@@ -108,7 +145,8 @@ void Three(string propertyContent)
                 _propertyContent += $"{Environment.NewLine}nbt.Enchantments.{k}.id={enchantments[2]}";
 
                 counter++;
-                File.WriteAllText(fileName, _propertyContent);
+                string filePath = FilePath();
+                File.WriteAllText($"{filePath}\\{fileName}", _propertyContent);
             }
         }
     }
@@ -116,7 +154,11 @@ void Three(string propertyContent)
 
 string Item()
 {
-    string propertyContent = $"type=item{Environment.NewLine}items={gearType}{Environment.NewLine}texture=./{gearTexture}";
+    var texture = gearTexture;
+    if (!CheckIfArmor(gearType))
+        texture = gearType;
+
+    string propertyContent = $"type=item{Environment.NewLine}items={gearType}{Environment.NewLine}texture=../{gearTexture}";
     return propertyContent;
 }
 
@@ -129,7 +171,7 @@ string Gear()
         gearTexture = "layer_1";
 
     string gearTypeLayer = gearType.Substring(0, gearType.IndexOf("_"));
-    string propertyContent = $"type=armor{Environment.NewLine}items={gearType}{Environment.NewLine}texture.{gearTypeLayer}=./{gearTexture}";
+    string propertyContent = $"type=armor{Environment.NewLine}items={gearType}{Environment.NewLine}texture.{gearTypeLayer}_{gearTexture}=../{gearTexture}";
 
     return propertyContent;
 }
@@ -146,4 +188,37 @@ bool CheckIfArmor(string gearType)
         return true;
     else
         return false;
+}
+
+
+string FilePath()
+{
+    string filePath = "";
+    if(itemType == "armor")
+    {
+        string armorType = gearType.Split("_")[1];
+        filePath = $"D:\\Program\\Minecraft\\Instances\\1.19.4 New\\resourcepacks\\pack template\\assets\\minecraft\\optifine\\cit\\armor\\{enchantmentFileName}\\{armorType}";
+    }
+    else if (itemType == "item" && CheckIfArmor(gearType))
+    {
+        string armorType = gearType.Split("_")[1];
+        filePath = $"D:\\Program\\Minecraft\\Instances\\1.19.4 New\\resourcepacks\\pack template\\assets\\minecraft\\optifine\\cit\\item\\gear\\{enchantmentFileName}\\{armorType}";
+    }
+
+    else
+    {
+        filePath = $"D:\\OptifineCITEnchantmentFiles";
+    }
+    return filePath;
+}
+
+string GenerateEnchantmentFileName()
+{
+    string enchantmentFileName = "";
+    foreach (var enchantment in enchantments)
+    {
+        enchantmentFileName += (enchantment + "_");
+    }
+    enchantmentFileName = enchantmentFileName.TrimEnd('_');
+    return enchantmentFileName;
 }
